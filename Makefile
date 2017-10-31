@@ -1,16 +1,27 @@
-hello.hex: hello.elf
-	avr-objcopy -j .text -j .data -O ihex hello.elf hello.hex
+obj = hello
+target = atmega88
 
-hello.asm: hello.elf
-	avr-objdump -d hello.elf > hello.asm
+%.hex: %.elf
+	avr-objcopy -j .text -j .data -O ihex $< $@
 
-hello.elf: hello.o
-	avr-gcc -g -mmcu=atmega88 -o hello.elf hello.o
+%.asm: %.elf
+	avr-objdump -d $< > $@
 
-hello.o: hello.c
-	avr-gcc -g -std=c11 -Os -mmcu=atmega88 -c hello.c
+%.elf: %.o
+	$(cc) -o $@ $<
+
+%.o: %.c
+	$(cc) -std=c11 -Os -c $<
+
+cc = avr-gcc -g -mmcu=$(target)
+
+$(obj).hex:
+
+asm : $(obj).asm
 
 clean:
 	rm -f *.o
 	rm -f *.elf
 	rm -f *.hex
+	rm -f *.asm
+
