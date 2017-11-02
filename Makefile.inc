@@ -8,9 +8,9 @@
 .PHONY: clean
 
 # All our rules
-main: $(obj).hex preflight
+main: $(obj).hex
 
-asm: $(obj).asm preflight
+asm: $(obj).asm
 
 %.hex: %.elf
 	avr-objcopy -j .text -j .data -O ihex $< $@
@@ -24,18 +24,11 @@ asm: $(obj).asm preflight
 %.o: %.c
 	$(cc) -std=c11 -Os -c $<
 
-.PHONY: preflight
-
-preflight:
-ifneq ("$(SETAVR)","1")
-	$(error "Run '. setavr.sh' before running make")
-endif
-
 clean:
-	rm -f *.o
-	rm -f *.elf
-	rm -f *.hex
-	rm -f *.asm
+	rm -f *.o *.elf *.hex *.asm
+
+# Preflight tests
+preflight := $(or $(SETAVR), $(error "Run '. setavr.sh' before make"))
 
 # All our variables
 cc = avr-gcc -g -mmcu=$(target)
