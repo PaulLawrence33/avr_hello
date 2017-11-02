@@ -70,7 +70,7 @@ void timer2_init()
 	TIMSK2 |= (1 << OCIE1A);
 }
 
-int main(int argc, char** argv)
+int main()
 {
 	timer2_init();
 	DDRB = 0xff;

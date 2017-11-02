@@ -31,4 +31,4 @@ clean:
 preflight := $(or $(SETAVR), $(error "Run '. setavr.sh' before make"))
 
 # All our variables
-cc = avr-gcc -g -mmcu=$(target)
+cc = avr-gcc -g -mmcu=$(target) -Wall -Wextra -Werror
