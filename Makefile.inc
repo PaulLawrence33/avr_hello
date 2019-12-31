@@ -7,6 +7,9 @@
 # Make target to clean directory
 .PHONY: clean
 
+# Make target to flash board
+.PHONY: flash
+
 # All our rules
 main: $(obj).hex
 
@@ -26,6 +29,9 @@ asm: $(obj).asm
 
 clean:
 	rm -f *.o *.elf *.hex *.asm
+
+flash: main 
+	avrdude -c usbtiny -p $(partno) -U flash:w:$(obj).hex
 
 # Preflight tests
 preflight := $(or $(SETAVR), $(error "Run '. setavr.sh' before make"))
