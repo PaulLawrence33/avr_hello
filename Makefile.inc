@@ -30,7 +30,7 @@ asm: $(obj).asm
 clean:
 	rm -f *.o *.elf *.hex *.asm
 
-flash: main 
+flash: main
 	avrdude -c usbtiny -p $(partno) -U flash:w:$(obj).hex
 
 # Preflight tests
