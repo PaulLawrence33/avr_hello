@@ -1,85 +1,97 @@
-#include <avr/interrupt.h>
 #include <avr/io.h>
 #include <avr/sleep.h>
 
-// a
-//f b
-// g
-//e c
-// d .
+#define F_CPU 8000000UL
+#include <util/delay.h>
 
-static const int digits[] = {
-  //.gfedcba 
-  0b00111111,
-  0b00000110,
-  0b01011011,
-  0b01001111,
-  0b01100110,
-  0b01101101,
-  0b01111101,
-  0b00000111,
-  0b01111111,
-  0b01100111,
-};
+#define OLED_ADDR 0x78
 
-const int displays = 2;
-
-ISR(TIMER2_COMPA_vect, ISR_BLOCK)
+void error(int code)
 {
-	static int seconds = 0;
-	static int one_twenty_fifths = 0;
-	static int digit = 0;
-	static char segments[2];
-
-	digit = (digit + 1) % displays;
-	PORTC |= 0x0f;
-	PORTB = segments[digit];
-	PORTC &= 0xff ^ (1 << digit); 
+	DDRB |= 1 << PB3;
 	
-	if (one_twenty_fifths == 62) {
-		segments[1] &= 0x7f;
-		segments[0] |= 0x80;
+	for(uint8_t i = 0; i < code * 2; ++i) {
+		PORTB ^= 1 << PB3;
+		_delay_ms(100);
 	}
 
-	if(++one_twenty_fifths != 125)
-		return;
-
-	one_twenty_fifths = 0;
-
-	++seconds;
-	segments[1] = digits[seconds % 10] | 0x80;
-	segments[0] = digits[seconds / 10 % 10];
+	sleep_enable();
+	sleep_cpu();
 }
 
-// initialize timer, interrupt and variable
-void timer2_init()
+int i2c_status(int flags)
 {
-	// Set up timer in CTC mode
-	TCCR2A = (1 << WGM21);
+	TWCR = (1 << TWINT) | (1 << TWEN) | flags;
+	while(!(TWCR & (1 << TWINT)));
+	return TWSR & 0xf8;
+}
 
-	// Set prescaler to 64
-	TCCR2B = (1 << CS22);
-  
-	// Initialize counter
-	TCNT2 = 0;
-  
-	// Initialize compare value
-	OCR2A = 125;
-  
-	// Enable compare interrupt
-	TIMSK2 |= (1 << OCIE1A);
+void i2c_start()
+{
+	if (i2c_status(1 << TWSTA) != 8)
+		error(1);
+
+	TWDR = OLED_ADDR;
+	if (i2c_status(0) != 0x18)
+		error(2);
+}
+
+void i2c_stop()
+{
+	TWCR = (1 << TWINT) | (1 << TWEN) | (1 << TWSTO);
+	while(TWCR & (1 << TWSTO));
+}
+
+void i2c_send(uint8_t byte)
+{
+	TWDR = byte;
+	if (i2c_status(0) != 0x28)
+		error(3);
+}
+
+void lcd_command(uint8_t command)
+{
+	i2c_start();
+	i2c_send(0x00);
+	i2c_send(command);
+	i2c_stop();
+}
+
+void lcd_command1(uint8_t command, uint8_t data)
+{
+	i2c_start();
+	i2c_send(0x00);
+	i2c_send(command);
+	i2c_send(data);
+	i2c_stop();
+}
+
+void lcd_data()
+{
+	i2c_start();
+	i2c_send(0x40);
+	i2c_send(0xff);
+	i2c_send(0x40);
+	i2c_send(0x00);
+	i2c_stop();
 }
 
 int main()
 {
-	timer2_init();
-	DDRB = 0xff;
-	DDRC = 0xff;
+	// Set clock speed to 8MHz
+	CLKPR = (1 << CLKPCE); // enable a change to CLKPR
+	CLKPR = 0; // set the CLKDIV to 0 - was 0011b = div by 8 taking 8MHz to 1MHz
 
-	PORTC = 0x00;
+	// Set i2c speed to 100kHz
+	TWSR = 0;
+	TWBR = 32;
 
-	sei();
-	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
-	for(;;)
-		sleep_mode();
+	lcd_command1(0x8d, 0x14);
+	lcd_command(0xaf);
+	lcd_command(0xa4);
+
+	for(int i = 0; i < 4096; ++i)
+		lcd_data();
+
+	return 0;
 }
