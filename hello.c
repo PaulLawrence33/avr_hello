@@ -1,3 +1,5 @@
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <avr/io.h>
@@ -198,10 +200,19 @@ void lcd_char(char c, uint8_t x, uint8_t y)
 	}
 }
 
-void lcd_string(const char *s, uint8_t x, uint8_t y)
+void lcd_string(uint8_t x, uint8_t y, const char *s)
 {
 	for (; *s; ++s, x += FONT_WIDTH)
 		lcd_char(*s, x, y);
+}
+
+void lcd_printf(uint8_t x, uint8_t y, const char *format, ...)
+{
+	char buffer[16];
+	va_list args;
+	va_start (args, format);
+	vsprintf (buffer,format, args);
+	lcd_string(x, y, buffer);
 }
 
 int main()
@@ -219,6 +230,9 @@ int main()
 	lcd_command(0xa4);		// Normal
 
 	lcd_clear(0);
-	lcd_string("Hello, Paul", 0, 0);
+	for (int i = 0;; ++i) {
+		lcd_printf(0, 0, "Round %d", i);
+		_delay_ms(250);
+	}
 	return 0;
 }
