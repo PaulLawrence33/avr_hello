@@ -33,8 +33,5 @@ clean:
 flash: main
 	avrdude -c usbtiny -p $(partno) -U flash:w:$(obj).hex
 
-# Preflight tests
-preflight := $(or $(SETAVR), $(error "Run '. setavr.sh' before make"))
-
 # All our variables
 cc = avr-gcc -g -mmcu=$(target) -Wall -Wextra -Werror
