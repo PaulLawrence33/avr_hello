@@ -1,4 +1,5 @@
-obj = hello
+source = hello.c lcd.c
+name = hello
 target = atmega88
 partno = m88
 

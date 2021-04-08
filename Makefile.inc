@@ -11,9 +11,9 @@
 .PHONY: flash
 
 # All our rules
-main: $(obj).hex
+main: $(name).hex
 
-asm: $(obj).asm
+asm: $(name).asm
 
 %.hex: %.elf
 	avr-objcopy -j .text -j .data -O ihex $< $@
@@ -21,8 +21,8 @@ asm: $(obj).asm
 %.asm: %.elf
 	avr-objdump -d $< > $@
 
-%.elf: %.o
-	$(cc) -o $@ $<
+%.elf: $(source:.c=.o)
+	$(cc) -o $@ $(source:.c=.o)
 
 %.o: %.c
 	$(cc) -std=c11 -Os -c $<
@@ -31,7 +31,7 @@ clean:
 	rm -f *.o *.elf *.hex *.asm
 
 flash: main
-	avrdude -c usbtiny -p $(partno) -U flash:w:$(obj).hex
+	avrdude -c usbtiny -p $(partno) -U flash:w:$(name).hex
 
 # All our variables
 cc = avr-gcc -g -mmcu=$(target) -Wall -Wextra -Werror
