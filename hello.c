@@ -1,12 +1,6 @@
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-
 #include <avr/io.h>
-#include <avr/pgmspace.h>
-#include <avr/sleep.h>
 
-#define F_CPU 8000000UL
+#include "constants.h"
 #include <util/delay.h>
 
 #include "lcd.h"
