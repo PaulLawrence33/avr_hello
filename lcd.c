@@ -178,30 +178,62 @@ void lcd_init()
 	lcd_command(0xa4);		// Normal
 }
 
+static void lcd_position_next_write(uint8_t x, uint8_t y)
+{
+	lcd_command(0xb0 | y);
+	lcd_command(0x00 | (x & 0x0f));
+	lcd_command(0x10 | (x & 0xf0) >> 4);
+}
+
+static void lcd_clear_partial_line(uint8_t x0, uint8_t x1, uint8_t y)
+{
+	lcd_position_next_write(x0, y);
+	i2c_start();
+	i2c_send(0x40);
+	for(uint8_t i = x0; i < x1; ++i)
+		i2c_send(0);
+	i2c_stop();
+}
+
 void lcd_clear()
 {
-	for (int page = 0; page < 8; ++page) {
-		lcd_command(0xb0 | page);
-		lcd_command(0x00);
-		lcd_command(0x10);
-		i2c_start();
-		i2c_send(0x40);
-		for(int i = 0; i < 128; ++i)
-			i2c_send(0);
-		i2c_stop();
-	}
+	for (uint8_t y = 0; y < 8; ++y)
+		lcd_clear_partial_line(0, 128, y);
 }
 
 static void lcd_char(char c, uint8_t x, uint8_t y)
 {
 	for (int half = 0; half < 2; ++half) {
-		lcd_command(0xb0 | (y + half));
-		lcd_command(0x00 | (x & 0x0f));
-		lcd_command(0x10 | (x & 0xf0) >> 4);
+		lcd_position_next_write(x, y + half);
 		i2c_start();
 		i2c_send(0x40);
-		for (int i = 0; i < FONT_WIDTH; ++i)
+		for (uint8_t i = 0; i < FONT_WIDTH; ++i)
 			i2c_send(pgm_read_byte((uint8_t *)&fontData9x16[c - 0x20][i] + half));
+		i2c_stop();
+	}
+}
+
+static void lcd_char_large(char c, uint8_t x, uint8_t y)
+{
+	for (int quarter = 0; quarter < 4; ++quarter) {
+		lcd_position_next_write(x, y + quarter);
+		i2c_start();
+		i2c_send(0x40);
+		for (uint8_t i = 0; i < FONT_WIDTH; ++i) {
+			uint8_t byte = pgm_read_byte((uint8_t *)&fontData9x16[c - 0x20][i] + quarter / 2);
+			uint8_t test = quarter % 2 ? 0x10 : 0x01;
+			uint8_t mask = 3;
+			uint8_t result = 0;
+			for (uint8_t i = 0; i < 4; ++i) {
+				if (byte & test)
+					result |= mask;
+				test <<= 1;
+				mask <<= 2;
+			}
+			
+			i2c_send(result);
+			i2c_send(result);
+		}
 		i2c_stop();
 	}
 }
@@ -210,6 +242,9 @@ static void lcd_string(uint8_t x, uint8_t y, const char *s)
 {
 	for (; *s; ++s, x += FONT_WIDTH)
 		lcd_char(*s, x, y);
+
+	lcd_clear_partial_line(x, 128, y);
+	lcd_clear_partial_line(x, 128, y + 1);
 }
 
 void lcd_printf(uint8_t x, uint8_t y, const char *format, ...)
@@ -217,7 +252,26 @@ void lcd_printf(uint8_t x, uint8_t y, const char *format, ...)
 	char buffer[16];
 	va_list args;
 	va_start (args, format);
-	vsprintf (buffer,format, args);
+	vsprintf (buffer, format, args);
 	lcd_string(x, y, buffer);
 }
 
+static void lcd_string_large(uint8_t x, uint8_t y, const char *s)
+{
+	for (; *s; ++s, x += FONT_WIDTH * 2)
+		lcd_char_large(*s, x, y);
+
+	lcd_clear_partial_line(x, 128, y);
+	lcd_clear_partial_line(x, 128, y + 1);
+	lcd_clear_partial_line(x, 128, y + 2);
+	lcd_clear_partial_line(x, 128, y + 3);
+}
+
+void lcd_printf_large(uint8_t x, uint8_t y, const char *format, ...)
+{
+	char buffer[16];
+	va_list args;
+	va_start (args, format);
+	vsprintf (buffer, format, args);
+	lcd_string_large(x, y, buffer);
+}

@@ -18,7 +18,7 @@ int main()
 	lcd_init();
 	lcd_clear();
 	for (int i = 0;; ++i) {
-		lcd_printf(0, 0, "Round %d", i);
+		lcd_printf_large(0, 2, "\"%d\"", i);
 		_delay_ms(250);
 	}
 	return 0;
