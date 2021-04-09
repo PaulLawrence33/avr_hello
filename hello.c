@@ -1,9 +1,13 @@
+#include <avr/interrupt.h>
 #include <avr/io.h>
+#include <avr/sleep.h>
 
 #include "constants.h"
 #include <util/delay.h>
 
 #include "lcd.h"
+
+volatile int counter = 0;
 
 int main()
 {
@@ -17,9 +21,21 @@ int main()
 
 	lcd_init();
 	lcd_clear();
-	for (int i = 0;; ++i) {
-		lcd_printf_large(0, 2, "\"%d\"", i);
-		_delay_ms(250);
+
+	// TIMER1 interrupt once a second
+	TCCR1B |= 1 << WGM12 | 1 << CS10 | 1 << CS12;
+	TIMSK1 |= 1 << OCIE1A;
+	OCR1A = 7812;
+
+	sleep_enable();
+	sei();
+	for(;;) {
+		sleep_cpu();
+		lcd_printf_large(0, 2, "\"%d\"", counter);
 	}
-	return 0;
+}
+
+ISR(TIMER1_COMPA_vect)
+{
+	counter++;
 }
