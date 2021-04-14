@@ -242,9 +242,6 @@ static void lcd_string(uint8_t x, uint8_t y, const char *s)
 {
 	for (; *s; ++s, x += FONT_WIDTH)
 		lcd_char(*s, x, y);
-
-	lcd_clear_partial_line(x, 128, y);
-	lcd_clear_partial_line(x, 128, y + 1);
 }
 
 void lcd_printf(uint8_t x, uint8_t y, const char *format, ...)
@@ -260,11 +257,6 @@ static void lcd_string_large(uint8_t x, uint8_t y, const char *s)
 {
 	for (; *s; ++s, x += FONT_WIDTH * 2)
 		lcd_char_large(*s, x, y);
-
-	lcd_clear_partial_line(x, 128, y);
-	lcd_clear_partial_line(x, 128, y + 1);
-	lcd_clear_partial_line(x, 128, y + 2);
-	lcd_clear_partial_line(x, 128, y + 3);
 }
 
 void lcd_printf_large(uint8_t x, uint8_t y, const char *format, ...)

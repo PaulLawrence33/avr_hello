@@ -34,4 +34,4 @@ flash: main
 	avrdude -c usbtiny -p $(partno) -U flash:w:$(name).hex
 
 # All our variables
-cc = avr-gcc -g -mmcu=$(target) -Wall -Wextra -Werror
+cc = avr-gcc -g -mmcu=$(target) -Wall -Wextra -Werror -Wl,-u,vfprintf -lprintf_flt -lm
