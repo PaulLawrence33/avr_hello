@@ -24,6 +24,8 @@ volatile enum b1_state {
 
 volatile bool half_second = false;
 volatile uint8_t hours = 12, minutes = 0, seconds = 0;
+volatile bool damper = false;
+volatile uint8_t damped_pinc = 0;
 
 double get_temperature()
 {
@@ -63,13 +65,12 @@ int main()
 	PCMSK1 |= 1 << PCINT9 | 1 << PCINT10 | 1 << PCINT11;
 	PORTC |= 1 << PC1 | 1 << PC2 | 1 << PC3;
 
-	DDRB |= PB3 << 1;
-
-	sleep_enable();
 	for(;;) {
+		sleep_enable();
 		sei();
 		sleep_cpu();
 		cli();
+		sleep_disable();
 
 		if (half_second || state == normal || state == flashing_seconds)
 			lcd_printf_large(0, 2, "%2d:%02d", hours, minutes);
@@ -118,17 +119,8 @@ ISR(TIMER1_COMPA_vect)
 	}
 }
 
-ISR(PCINT1_vect)
+static void apply_switches()
 {
-	if (!(PINC & 1 << PC2)) {
-		switch (state) {
-			case flashing_hours: hours++; if (hours == 13) hours = 1; break;
-			case flashing_minutes: minutes++; if (minutes == 60) minutes = 0; break;
-			case flashing_seconds: seconds = 0; break;
-			default: break;
-		}
-	}
-
 	if (!(PINC & 1 << PC1)) {
 		switch (state) {
 			case flashing_hours: hours--; if (hours == 0) hours = 12; break;
@@ -138,9 +130,16 @@ ISR(PCINT1_vect)
 		}
 	}
 
-	if (PINC & 1 << PC3) {
-		b1_state = released;
-	} else {
+	if (!(PINC & 1 << PC2)) {
+		switch (state) {
+			case flashing_hours: hours++; if (hours == 13) hours = 1; break;
+			case flashing_minutes: minutes++; if (minutes == 60) minutes = 0; break;
+			case flashing_seconds: seconds = 0; break;
+			default: break;
+		}
+	}
+
+	if (!(PINC & 1 << PC3)) {
 		b1_state = pressed;
 
 		switch(state) {
@@ -149,5 +148,35 @@ ISR(PCINT1_vect)
 			case flashing_seconds: state = flashing_hours;   break;
 			default: break;
 		}
+	} else {
+		b1_state = released;
 	}
+}
+
+ISR(TIMER0_COMPA_vect)
+{
+	damper = false;
+	TCCR0A &= ~(1 << WGM01);
+	TCCR0B &= 1 << CS02;
+	TIMSK0 &= 1 << OCIE0A;
+
+	if (damped_pinc != PINC)
+		apply_switches();
+}
+
+ISR(PCINT1_vect)
+{
+	if (damper)
+		return;
+
+	damper = true;
+	damped_pinc = PINC;
+
+	// TIMER0 interrupt in 5 ms
+	TCCR0A |= 1 << WGM01;
+	TCCR0B |= 1 << CS02;
+	TIMSK0 |= 1 << OCIE0A;
+	OCR0A = 156; // 5ms * 8MHz / 256
+
+	apply_switches();
 }
